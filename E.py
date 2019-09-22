@@ -5,7 +5,7 @@ class E:
         return var_name in self.ds.keys()
     def adjunct( self, var_name, binding):
         try:
-            self.ds[var_name] == binding
+            self.ds[var_name] = binding
             return 0
         except :
             return -1
