@@ -38,6 +38,14 @@ class SAS:
             if self.
 
     def isBounded(self, tempVar):
+        '''
+            tempVar: can either be a value or binding
+            if tempVar -> Value then False
+            else check in the SAS to find the binding of the tempVar
+        '''
+        # check if the tempVar is a value
+        if self.__isValue( tempVar ):
+            return False
         parent = self.__findRoot(tempVar)
         return self.__isValue(parent)
 
@@ -45,10 +53,11 @@ class SAS:
         c1 = self.isBounded(tempVar1)
         c2 = self.isBounded(tempVar2)
         if not (c1 or  c2 ): # Both variables unbounded!
+            #TODO: mark them UNIFIED
             self.Bind( tempVar1, tempVar2, mode = 2)
         elif c1 ^ c2 : # Any one of them is bounded
             self.Bind( tempVar1, tempVar2, mode = 1)
-            #Mark the variable unified.
+            #TODO:Mark the variable unified.
         else:
             # Both of them bounded
             type1 = self.__getType( tempVar1 )
