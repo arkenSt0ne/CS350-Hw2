@@ -24,6 +24,19 @@ class Record:
         else:
             return False
         return False
+
+    def isCompatible( self, other ):
+        if type(other) == Record:
+            if ( self.getLiteral() == other.getLiteral() ):
+                if ( self.arity() ==  other.arity()):
+                    return self.getLabels() == other.getLabels() )
+                else:
+                        return False
+            else:
+                        return False
+        else:
+            return False
+    
     def arity(self):
         return len(val_dict.keys())
 
