@@ -72,11 +72,12 @@ end
 fun {ListOfFeatures PairList}
    local SomeFunc in
       fun {SomeFunc X}
-         case X 
+         case X.1
          of nil then nil
-         [] literal(Z)|_ then Z
+         [] literal(Z) then Z
          else 
             raise
+               {System.show illegalRecord(X)}
                illegalRecord(features:PairList)
             end
          end

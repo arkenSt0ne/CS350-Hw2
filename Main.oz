@@ -60,8 +60,10 @@ define
 					Env      = StackTop.env
 					case Stmt
 					of nop then skip
-					[] variable|IdentList|NextStmt|nil then
-						local NewEnv  in
+					[] variable|Next then
+						local NewEnv IdentList NextStmt in
+							IdentList = Next.1
+							NextStmt = Next.2
 							NewEnv = {CloneEnv Env}
 							{AddIdentsInEnv IdentList NewEnv}
 							{Push pair(stmt:NextStmt env:NewEnv)}
@@ -137,40 +139,59 @@ define
 							 	raise variableNotDefined(PName) end
 							 end						
 						end
+
 					[] match|ident(X)|record|L|Pairs1|TrueStmt|FalseStmt|nil then
+					% here assumed <p> will always be a proper record (i.e not a literal)
+						{System.show caseStmt(ident:X l:L pairs1:Pairs1 truestmt:TrueStmt falsestmt:FalseStmt)}
 						local NewEnv  ValX InpPair ExpPair in 
 							NewEnv = {CloneEnv Env}
-							try	
+							% try	
 								ValX = {RetrieveFromSAS {GetFromEnv X Env}}
 								case ValX
 								of equivalence(_) then
+									% X is unbounded
 									SuspendCount:=@SuspendCount+1
+									raise unBoundVariable(X) end
 								[] record | !L | PairList|nil then
 								   	InpPair = {Canonize Pairs1}
 									ExpPair = {Canonize PairList}
+									% InpPair = Pairs1
+									% ExpPair = PairList
 									if {Length ExpPair} \= {Length InpPair} then
-										raise incompatibleRecordArity end
+										{Push pair(stmt:FalseStmt env:{CloneEnv Env})}
 									else
 										if {ListOfFeatures InpPair} \= {ListOfFeatures ExpPair}
 										then
-											raise 
-												incompatibleFeatures 
-											end
+											{Push pair(stmt:FalseStmt env:{CloneEnv Env})}
 										else
-											skip
-											%Something
-
+											% all good, add new variables to environment, if any
+											_ = {
+												Map InpPair 
+													fun {$ X}
+														case X.2.1
+														of ident(Y) then
+															local Key in
+																Key = {AddKeyToSAS}
+																{System.show declaring(key:Y)}
+																{Addjunct NewEnv Y Key}
+															end
+														else nil %do nothing, Unify will take care below
+														end
+													end
+											}
+											{Unify ValX record|L|Pairs1|nil NewEnv}
+											{Push pair(env:NewEnv stmt:TrueStmt)}
 										end
 									end	
 								else 
-									raise incompatibleRecords end
+									{Push pair(stmt:FalseStmt env:{CloneEnv Env})}
 								end
 
-								{Unify X record|L|Pairs1|nil NewEnv}
-								{Push pair(env:NewEnv stmt:TrueStmt)}
-							catch X then
-								{Push pair(stmt:FalseStmt env:{CloneEnv Env})}
-							end
+								% {Unify X record|L|Pairs1|nil NewEnv}
+								% {Push pair(env:NewEnv stmt:TrueStmt)}
+							% catch X then
+								% {Push pair(stmt:FalseStmt env:{CloneEnv Env})}
+							% end
 						end
 					[] H|T then 
 					   if T \=nil then
@@ -197,14 +218,21 @@ define
 		{ExecStack}
 	end
 	local AST in 
-      AST = [variable [ident(f) ident(r) ident(p)] 
-	     [procedure ident(p) [ident(x)] 
-	      [
-	       [bind ident(f) ident(x)] 
-	       [bind ident(r) [record literal(rec) [[literal(f1) literal(x1)] [literal(f2) literal(x2)]]]]
-	      ]
-	     ]
-	    ]
+    %   AST = [variable [ident(f) ident(r) ident(p)] 
+	%      [procedure ident(p) [ident(x)] 
+	%       [
+	%        [bind ident(f) ident(x)] 
+	%        [bind ident(r) [record literal(rec) [[literal(f1) literal(x1)] [literal(f2) literal(x2)]]]]
+	%       ]
+	%      ]
+	%     ]
+		AST = [variable [ident(x) ident(a) ident(b)]
+			[bind ident(x) [record literal(lit) [[literal(f1) ident(a)] [literal(f2) literal(v2)]]] ]
+			[match ident(x) record literal(lit) [[literal(f1) ident(y)] [literal(f2) ident(z)]] [bind ident(a) ident(x)] [bind ident(b) ident(x)] ]
+			nop
+		]
+			
+		% AST = [match ident(x) record literal(lit) [[f1 v1] [f2 v2]] nop nop]
       {Browser.browse inputGiven(AST)}
       {ParseAST AST}
    end
