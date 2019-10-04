@@ -9,27 +9,6 @@ define
     \insert 'SemanticStack.oz'
     \insert 'FreeVariable.oz'
 	\insert 'unify.oz'
-	fun {BindFromEnv Env CE}
-		fun {$ X Y}
-			if {IsInEnv X Env} then
-			   {Unify {GetFromEnv X Env} Y CE}
-			   unified
-			else
-				raise 
-					variableNotDefined(X)
-				end
-			end
-		end
-	end
-	proc {BindFuncArgs FormalArgs ActualArgs Env CE}
-		if {Length FormalArgs} \= {Length ActualArgs} then
-			raise 
-				illegalBindingParams(formal:FormalArgs actual:ActualArgs)
-			end
-		else
-			{List.zip ActualArgs FormalArgs {BindFromEnv Env CE}}
-		end
-	end
 	proc {AddIdentsInEnv L Env}
 		_=	{
 		Map {Flatten L} fun {$ X}
@@ -77,7 +56,7 @@ define
 										if {IsInEnv Y Env} then
 											{Unify Exp1 Exp2 Env}
 										else
-											raise variableNotDeclared73(Y)
+											raise variableNotDeclared59(Y)
 											end
 										end
 									[] procedure|Args|Stmt|nil then
@@ -90,7 +69,7 @@ define
 										{Unify Exp1 Exp2 Env}
 									end
 								else
-									raise variableNotDeclared86(X) end
+									raise variableNotDeclared72(X) end
 								end
 						[] procedure|_ then
 							raise procedureBindingWithNonVar(Exp1)	end
@@ -104,7 +83,11 @@ define
 							if {IsInEnv X Env} then
 								Value = {RetrieveFromSAS {GetFromEnv X Env}}
 								case Value
-								of equivalence(_) then SuspendCount:=@SuspendCount+1 
+								of equivalence(_) then 
+									SuspendCount:=@SuspendCount+1 
+									raise 
+										unBoundVariable(X)
+									end
 								[] boolTrue then 
 									 {Push pair(stmt:TrueStmt env:{CloneEnv Env})}
 								[] boolFalse then
@@ -113,27 +96,50 @@ define
 									raise illegalBooleanValue(Value) end
 								end
 							else
-								raise variableNotDeclared109(X) end
+								raise variableNotDeclared99(X) end
 							end
 						end
 					[] apply|ident(PName)|ActualArgs|nil then
-						local Fvalue Fce in
+						local Fvalue Fce  in
 							 if {IsInEnv PName Env} then
 								 Fvalue = {RetrieveFromSAS {GetFromEnv PName Env}}
 								 case Fvalue
 								 of procedure(stmt:procedure|FormalArgs|ProcStmt|nil ce:CE) then
 								 	 if {Length ActualArgs} == {Length FormalArgs} then
-									 	 Fce = {CloneEnv CE}
-										 {BindFuncArgs FormalArgs ActualArgs Env Fce}
-										 {Push pair(stmt:ProcStmt env:Fce)}
-										 									 
+									 	Fce = {CloneEnv CE}
+										{
+											 List.forAll FormalArgs proc {$ X}
+											 							local Key in 
+																			case X
+																			of ident(Y) then
+																				Key ={AddKeyToSAS}
+																				{System.show declaring(key:Y)}
+																				_={Addjunct Fce Y Key}
+																			else 
+																				skip
+																			end
+																		end
+											 						end
+										}
+										_= {List.zip ActualArgs FormalArgs proc{$ X Y }
+										 										{Unify X Y Fce}
+										 									end
+										}
+										{System.show procedureCallSuccess(pname:PName)}
+										{Push pair(env:Fce stmt:ProcStmt)}
+										
 									 else
 									 	raise 
 										  argumentNumberMismatch(found:{Length ActualArgs} expected:{Length FormalArgs})
 										end 
 									 end
+								 [] equivalence(_) then
+								 	 SuspendCount := @SuspendCount+1
+									 raise
+									 	unBoundVariable(PName)
+									 end	
 								 else 
-								 	raise notAValidProcedure(PName) end
+								 	raise typeError(PName) end
 								 end
 							 else
 							 	raise variableNotDefined(PName) end
