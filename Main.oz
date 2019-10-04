@@ -4,6 +4,7 @@ import
    System
 %    Application
 define
+	% {Browser.option buffer size:150 }
 	\insert 'Environment.oz'
 	\insert 'SingleAssignmentStore.oz'
     \insert 'ProcessRecords.oz'
@@ -102,6 +103,7 @@ define
 							end
 						end
 					[] apply|ident(PName)|ActualArgs|nil then
+						{System.show pCall(args:ActualArgs name:PName)}
 						local Fvalue Fce  in
 							 if {IsInEnv PName Env} then
 								 Fvalue = {RetrieveFromSAS {GetFromEnv PName Env}}
@@ -123,8 +125,22 @@ define
 																		end
 											 						end
 										}
-										_= {List.zip ActualArgs FormalArgs proc{$ X Y }
-										 										{Unify X Y Fce}
+										{System.show env({GetEnv Fce})}
+										_= {List.zip ActualArgs FormalArgs fun {$ X Y }
+																				case X 
+																				of ident(Z) then
+																					if {IsInEnv Z Env} then 
+																						{Unify Y {RetrieveFromSAS {GetFromEnv Z Env}} Fce}
+																						unit
+																					else 
+																						raise 
+																							variableNotDeclared136(Z)
+																						end
+																					end
+																				else 
+																					{Unify X Y Fce}
+																					unit
+																				end
 										 									end
 										}
 										{System.show procedureCallSuccess(pname:PName)}
@@ -151,7 +167,6 @@ define
 						{System.show caseStmt(ident:X l:L pairs1:Pairs1 truestmt:TrueStmt falsestmt:FalseStmt)}
 						local NewEnv  ValX InpPair ExpPair in 
 							NewEnv = {CloneEnv Env}
-							% try	
 								ValX = {RetrieveFromSAS {GetFromEnv X Env}}
 								case ValX
 								of equivalence(_) then
@@ -193,12 +208,6 @@ define
 								else 
 									{Push pair(stmt:FalseStmt env:{CloneEnv Env})}
 								end
-
-								% {Unify X record|L|Pairs1|nil NewEnv}
-								% {Push pair(env:NewEnv stmt:TrueStmt)}
-							% catch X then
-								% {Push pair(stmt:FalseStmt env:{CloneEnv Env})}
-							% end
 						end
 					[] H|T then 
 					   if T \=nil then
@@ -229,20 +238,21 @@ define
 		{ExecStack}
 	end
 	local AST in 
-    %   AST = [variable [ident(f) ident(r) ident(p)] 
-	%      [procedure ident(p) [ident(x)] 
-	%       [
-	%        [bind ident(f) ident(x)] 
-	%        [bind ident(r) [record literal(rec) [[literal(f1) literal(x1)] [literal(f2) literal(x2)]]]]
-	%       ]
-	%      ]
-	%     ]
-		AST = [variable [ident(x) ident(y)]
-			  [bind ident(x) literal(1)]
-			  [conditional ident(x) [nop] [bind ident(x) ident(y)]]
-		]
+      AST = [variable [ident(f) ident(r) ident(p) ident(q) ident(w)]
+	  	 [bind ident(q) ident(w)] 
+	     [procedure ident(p) [ident(x)] 
+	      [
+	       [bind ident(f) ident(x)] 
+	       [bind ident(r) [record literal(rec) [[literal(f1) literal(x1)] [literal(f2) literal(x2)]]]]
+	      ]
+	     ]
+		 [ variable [ident(z)]
+		   [apply ident(p) [ident(z)]]
+		 ]
+	    ]
 			
 		% AST = [match ident(x) record literal(lit) [[f1 v1] [f2 v2]] nop nop]
+	   
       {Browser.browse inputGiven(AST)}
       {ParseAST AST}
    end
