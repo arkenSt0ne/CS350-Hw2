@@ -2,6 +2,7 @@ functor
 import
    Browser
    System
+%    Application
 define
 	\insert 'Environment.oz'
 	\insert 'SingleAssignmentStore.oz'
@@ -25,11 +26,14 @@ define
 		}
 	end
 	SuspendCount = {NewCell 0}
+	UnBoundVar  = {NewCell nil}
 	proc {ExecStack}
 		local StackTop Stmt Env in
 			if {IsEmpty} then
 				{Browser.browse sasViewEnd({PrintableSAS})}
 				{Browser.browse 'Execution Ended Successfully'}
+				{System.show 'Execution Ended Successfully'}
+				% {Application.exit 0}
 			else
 				if @SuspendCount == 0 then
 					{Browser.browse stackView({PrintStack})}
@@ -85,12 +89,10 @@ define
 								case Value
 								of equivalence(_) then 
 									SuspendCount:=@SuspendCount+1 
-									raise 
-										unBoundVariable(X)
-									end
-								[] boolTrue then 
+									UnBoundVar:=var(X)
+								[] literal(true) then 
 									 {Push pair(stmt:TrueStmt env:{CloneEnv Env})}
-								[] boolFalse then
+								[] literal(false) then
 									 {Push pair(stmt:FalseStmt env:{CloneEnv Env})}
 								else
 									raise illegalBooleanValue(Value) end
@@ -134,10 +136,8 @@ define
 										end 
 									 end
 								 [] equivalence(_) then
-								 	 SuspendCount := @SuspendCount+1
-									 raise
-									 	unBoundVariable(PName)
-									 end	
+									SuspendCount := @SuspendCount+1
+									UnBoundVar:=pname(PName)
 								 else 
 								 	raise typeError(PName) end
 								 end
@@ -157,7 +157,8 @@ define
 								of equivalence(_) then
 									% X is unbounded
 									SuspendCount:=@SuspendCount+1
-									raise unBoundVariable(X) end
+									% raise unBoundVariable(X) end
+									UnBoundVar:=var(X)
 								[] record | !L | PairList|nil then
 								   	InpPair = {Canonize Pairs1}
 									ExpPair = {Canonize PairList}
@@ -211,7 +212,11 @@ define
 					end
 					{ExecStack}
 				else
+					{Browser.browse unBounded(@UnBoundVar)}
 					{Browser.browse 'Execution Suspended'}
+					{System.show unBounded(@UnBoundVar)}
+					{System.show 'Execution Suspended'}
+					% {Application.exit ~1}
 				end
 			end
 		end
@@ -220,7 +225,7 @@ define
 	end
 	proc {ParseAST AST}
 		{Push pair(env:{InitEnv} stmt:AST)}
-		{Browser.browse 'Starting Execution'}
+		{System.show 'Starting Execution'}
 		{ExecStack}
 	end
 	local AST in 
@@ -232,10 +237,9 @@ define
 	%       ]
 	%      ]
 	%     ]
-		AST = [variable [ident(x) ident(a) ident(b)]
-			[bind ident(x) [record literal(lit) [[literal(f1) ident(a)] [literal(f2) literal(v2)]]] ]
-			[match ident(x) record literal(lit) [[literal(f1) ident(y)] [literal(f2) ident(z)]] [bind ident(a) ident(x)] [bind ident(b) ident(x)] ]
-			nop
+		AST = [variable [ident(x) ident(y)]
+			  [bind ident(x) literal(1)]
+			  [conditional ident(x) [nop] [bind ident(x) ident(y)]]
 		]
 			
 		% AST = [match ident(x) record literal(lit) [[f1 v1] [f2 v2]] nop nop]
