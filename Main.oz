@@ -11,6 +11,70 @@ define
     \insert 'SemanticStack.oz'
     \insert 'FreeVariable.oz'
 	\insert 'unify.oz'
+	fun {Operate Opcode Val1 Val2}
+		try 
+			case Opcode
+			of sum then Val1+Val2
+			[] multiply then Val1 * Val2
+			[] substract then Val1 - Val2
+			[] equals then Val1 == Val2
+			else 
+				raise 
+					operationNotDefined(opcode : Opcode)
+				end
+			end
+		catch X 
+		then 
+			raise 
+				couldNotOperate(operation:Opcode op1:Val1 op2:Val2)
+			end
+		end
+	end
+	fun {GetLiteral TOp1 Env}
+		local Op1 in 
+			case TOp1
+			of ident(X) then 
+				{CheckVar X Env}
+				Op1 = {RetrieveFromSAS {GetFromEnv X Env}}
+				case Op1 
+				of literal(Y) then 
+					Y
+				else
+					raise 
+							variableWithNonLiteral(var:X val:Op1) 
+					end
+				end
+			[] literal(Y) then
+				Y
+			else
+				raise 
+							nonLiteral(val:TOp1) 
+				end
+			end
+		end
+	end
+	proc {CheckVar X Env}
+		if  {IsInEnv X Env} then skip
+		else
+			raise
+				variableNotDefined18(X)
+			end
+		end
+	end
+	fun {BinaryExpr Expr Env}
+		case Expr
+		of binaryOp(Opcode)|Operand1|Operand2|nil then
+		   local TOp1 TOp2 Op1 Op2 Val1 Val2  in
+		   		TOp1 = {BinaryExpr Operand1 Env}
+				TOp2 = {BinaryExpr Operand2 Env}
+				Val1 = {GetLiteral TOp1 Env}
+				Val2 = {GetLiteral TOp2 Env}
+				literal({Operate Opcode Val1 Val2})
+		   end
+		else 
+			Expr
+		end
+	end
 	proc {AddIdentsInEnv L Env}
 		_=	{
 		Map {Flatten L} fun {$ X}
@@ -52,34 +116,38 @@ define
 							{AddIdentsInEnv IdentList NewEnv}
 							{Push pair(stmt:NextStmt env:NewEnv)}
 						end
-					[] bind|Exp1|Exp2|nil then
-						case Exp1
-						of ident(X) then
-								if{IsInEnv X Env} then
-									case Exp2
-									of ident(Y) then
-										if {IsInEnv Y Env} then
-											{Unify Exp1 Exp2 Env}
-										else
-											raise variableNotDeclared59(Y)
+					[] bind|Expr1|Expr2|nil then
+						local Exp1 Exp2 in
+							Exp1 = {BinaryExpr Expr1 Env}
+							Exp2 = {BinaryExpr Expr2 Env}	
+							case Exp1
+							of ident(X) then
+									if{IsInEnv X Env} then
+										case Exp2
+										of ident(Y) then
+											if {IsInEnv Y Env} then
+												{Unify Exp1 Exp2 Env}
+											else
+												raise variableNotDeclared59(Y)
+												end
 											end
-										end
-									[] procedure|Args|Stmt|nil then
-										local CE in
-											CE = {GetContextualEnv  Stmt Args Env }
-											{Browser.browse contextEnv(ce:{Dictionary.entries CE} stmt:Exp2)}
-											{Unify Exp1 procedure(stmt:Exp2 ce:CE) Env}
+										[] procedure|Args|Stmt|nil then
+											local CE in
+												CE = {GetContextualEnv  Stmt Args Env }
+												{Browser.browse contextEnv(ce:{Dictionary.entries CE} stmt:Exp2)}
+												{Unify Exp1 procedure(stmt:Exp2 ce:CE) Env}
+											end
+										else
+											{Unify Exp1 Exp2 Env}
 										end
 									else
-										{Unify Exp1 Exp2 Env}
+										raise variableNotDeclared72(X) end
 									end
-								else
-									raise variableNotDeclared72(X) end
-								end
-						[] procedure|_ then
-							raise procedureBindingWithNonVar(Exp1)	end
-						else
-							raise unknown(exp1:Exp1 exp2:Exp2)	end
+							[] procedure|_ then
+								raise procedureBindingWithNonVar(Exp1)	end
+							else
+								raise unknown(exp1:Exp1 exp2:Exp2)	end
+							end
 						end
 					[] procedure|ident(X)|Args|Stmt|nil then
 						 {Push pair(stmt:  bind|ident(X)|[procedure Args Stmt]|nil env:Env)}
@@ -238,19 +306,25 @@ define
 		{ExecStack}
 	end
 	local AST in 
-      AST = [variable [ident(f) ident(r) ident(p) ident(q) ident(w)]
-	  	 [bind ident(q) ident(w)] 
-	     [procedure ident(p) [ident(x)] 
-	      [
-	       [bind ident(f) ident(x)] 
-	       [bind ident(r) [record literal(rec) [[literal(f1) literal(x1)] [literal(f2) literal(x2)]]]]
-	      ]
-	     ]
-		 [ variable [ident(z)]
-		   [apply ident(p) [ident(z)]]
-		 ]
-	    ]
-			
+		% AST = [variable [ident(f) ident(r) ident(p) ident(q) ident(w)]
+		% 	[bind ident(q) ident(w)] 
+		% 	[procedure ident(p) [ident(x)] 
+		% 	[
+		% 	[bind ident(f) ident(x)] 
+		% 	[bind ident(r) [record literal(rec) [[literal(f1) literal(x1)] [literal(f2) literal(x2)]]]]
+		% 	]
+		% 	]
+		% 	[ variable [ident(z)]
+		% 	[apply ident(p) [ident(z)]]
+		% 	]
+		% 	]
+		AST = [
+			variable [ ident(x) ident(y) ident(z) ident(a)]
+			[bind ident(x) literal(4)]
+			[bind ident(y) ident(x)]
+			[bind ident(z) [binaryOp(equals) literal(4) ident(x) ]]
+			[conditional ident(z) [bind ident(a) literal(0)] [bind ident(a) literal(1)]]
+		]
 		% AST = [match ident(x) record literal(lit) [[f1 v1] [f2 v2]] nop nop]
 	   
       {Browser.browse inputGiven(AST)}
