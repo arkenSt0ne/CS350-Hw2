@@ -43,3 +43,12 @@ fun {PrintableSAS}
       _={Map {Dictionary.entries SAS} ExpandProcs}
    end
 end
+
+proc {PrintableStmt Env}
+   local ExpandProcs in 
+      fun {ExpandProcs X}
+         {System.show env(X)}
+      end
+      _={Map {Dictionary.entries Env} ExpandProcs}
+   end
+end

@@ -110,6 +110,7 @@ define
 						StackTop = {Pop}
 						Stmt     = StackTop.stmt
 						Env      = StackTop.env
+						% {PrintableStmt Env }
 						{IncreaseExecutionCount}
 						case Stmt
 						of nop then {ResetSuspendCount}
@@ -167,6 +168,7 @@ define
 									of equivalence(_) then 
 										{IncreaseSuspendCount}
 										UnBoundVar:=var(X)
+										{Push pair(stmt:Stmt env:{CloneEnv Env})}
 										{SuspendCurrThread}
 									[] literal(true) then 
 										{ResetSuspendCount}
@@ -234,6 +236,7 @@ define
 									[] equivalence(_) then
 										{IncreaseSuspendCount}
 										UnBoundVar:=pname(PName)
+										{Push pair(stmt:Stmt env:{CloneEnv Env})}
 										{SuspendCurrThread}
 									else 
 										raise typeError(PName) end
@@ -253,6 +256,7 @@ define
 									of equivalence(_) then
 										% X is unbounded
 										{IncreaseSuspendCount}
+										{Push pair(stmt:Stmt env:{CloneEnv Env})}
 										{SuspendCurrThread}
 										% raise unBoundVariable(X) end
 										UnBoundVar:=var(X)
@@ -354,16 +358,43 @@ define
 		% 	[conditional ident(z) [bind ident(a) literal(0)] [bind ident(a) literal(1)]]
 		% ]
 		% AST = [match ident(x) record literal(lit) [[f1 v1] [f2 v2]] nop nop]
-		AST = [variable [ident(a) ident(b) ident(c) ident(d) ident(e) ident(f)] 
-				[thr
-					[bind ident(b) literal(b)]
-					[bind ident(c) literal(c)]
-					[bind ident(d) literal(d)]
-					[bind ident(e) literal(e)]
-					[bind ident(f) literal(f)]
-				]
+		% AST = [variable [ident(a) ident(b) ident(c) ident(d) ident(e) ident(f)] 
+		% 		[thr
+		% 			[bind ident(b) literal(b)]
+		% 			[bind ident(c) literal(c)]
+		% 			[bind ident(d) literal(d)]
+		% 			[bind ident(e) literal(e)]
+		% 			[bind ident(f) literal(f)]
+		% 		]
+		% 		[bind ident(a) literal(10)]
+		% 	  ]
+		AST = [variable [ident(s1) ident(s2) ident(a)]
 				[bind ident(a) literal(10)]
-			  ]
+				[thr
+					[variable [ident(b)] 
+						[bind ident(b) [binaryOp(sum) ident(a) literal(1)]]
+						[conditional ident(s1) [nop] [nop nop]]
+					]
+				]
+				[thr
+					[variable [ident(c)]
+						[bind ident(c) [binaryOp(sum) ident(a) literal(2)] ]
+						[conditional ident(s2) [nop] [nop nop]]
+						[bind ident(s1) literal(true)]
+					]
+				]
+				[variable [ident(a)]
+					[bind ident(a) literal(100)]
+					[thr
+						[variable [ident(d)]
+							[bind ident(d) [binaryOp(sum) ident(a) literal(3)]]
+							[bind ident(s2) literal(false)]
+						]
+					]
+				
+				]
+		
+			]
 	   
       {Browser.browse inputGiven(AST)}
       {ParseAST AST}

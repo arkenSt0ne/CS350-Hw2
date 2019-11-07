@@ -36,16 +36,38 @@ proc {IncreaseSuspendCount}
    SuspendCount := @SuspendCount+1
    {System.show 'Thread Suspended'}
 end
-
+proc {RemNil}
+   case @MultiStack
+   of nil then skip
+   [] H|T then if H == nil then MultiStack = @MultiStack.2
+                           {RemNil}
+               else
+                        skip
+               end
+   end
+end
 
 proc {DeleteCurrThread}
-   {ResetExecutionCount}
-   MultiStack := @MultiStack.2
+   {RemNil}
+   % {ResetExecutionCount}
+   % if @MultiStack.1==nil then
+   %    MultiStack = @MultiStack.2
+   %    {DeleteCurrThread}
+   % else
+   %    skip
+   % end
 end
+
+% proc {DeleteCurrThread}
+%    {ResetExecutionCount}
+%    MultiStack := {Filter fun{$ X} X\=nil end @MultiStack}
+%    {System.show deletingthread(@MultiStack)}
+% end
 
 proc {SuspendCurrThread}
    {ResetExecutionCount}
    MultiStack := {Append @MultiStack.2 [@MultiStack.1]}
+   {System.show multistack(@MultiStack)}
    {System.show 'Thread Suspended'}
 end
 
