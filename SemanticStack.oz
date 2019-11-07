@@ -46,23 +46,16 @@ proc {RemNil}
                end
    end
 end
-
 proc {DeleteCurrThread}
-   {RemNil}
-   % {ResetExecutionCount}
-   % if @MultiStack.1==nil then
-   %    MultiStack = @MultiStack.2
-   %    {DeleteCurrThread}
-   % else
-   %    skip
-   % end
+   {ResetExecutionCount}
+   if @MultiStack==nil then skip
+   else
+      if @MultiStack.1==nil then MultiStack := @MultiStack.2 {DeleteCurrThread}
+      else skip
+      end
+   end
+   {System.show deletingthread(@MultiStack)}
 end
-
-% proc {DeleteCurrThread}
-%    {ResetExecutionCount}
-%    MultiStack := {Filter fun{$ X} X\=nil end @MultiStack}
-%    {System.show deletingthread(@MultiStack)}
-% end
 
 proc {SuspendCurrThread}
    {ResetExecutionCount}
@@ -79,13 +72,16 @@ proc {Push Val}
 end
 
 fun {IsEmpty}
-   if @MultiStack.1==nil then
-      {Browser.browse 'Thread Ended Successfully'}
-      {System.show 'Thread Ended Successfully'}
-      {DeleteCurrThread}
-   else skip
+   if @MultiStack==nil then 1==1
+   else
+      if @MultiStack.1==nil then
+         {Browser.browse 'Thread Ended Successfully'}
+         {System.show 'Thread Ended Successfully'}
+         {DeleteCurrThread}
+      else skip
+      end
+      @MultiStack == nil
    end
-   @MultiStack == nil
 end
 
 fun {Pop}
