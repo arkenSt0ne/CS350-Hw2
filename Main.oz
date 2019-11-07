@@ -90,7 +90,6 @@ define
 						end 
 		}
 	end
-	SuspendCount = {NewCell 0}
 	UnBoundVar  = {NewCell nil}
 	proc {ExecStack}
 		{Browser.browse executioncount(@ExecutionCount)}
@@ -105,7 +104,7 @@ define
 					{SuspendCurrThread}
 					{ExecStack}
 				else
-					if @SuspendCount == 0 then
+					if @SuspendCount \= {Length @MultiStack} then
 						% {Browser.browse stackView({PrintStack})}
 						{System.show sasView({PrintableSAS})}
 						StackTop = {Pop}
@@ -113,8 +112,9 @@ define
 						Env      = StackTop.env
 						{IncreaseExecutionCount}
 						case Stmt
-						of nop then skip
+						of nop then {ResetSuspendCount}
 						[] variable|Next then
+							{ResetSuspendCount}
 							local NewEnv IdentList NextStmt in
 								IdentList = Next.1
 								NextStmt = Next.2
@@ -155,19 +155,24 @@ define
 									raise unknown(exp1:Exp1 exp2:Exp2)	end
 								end
 							end
+							{ResetSuspendCount}
 						[] procedure|ident(X)|Args|Stmt|nil then
 							{Push pair(stmt:  bind|ident(X)|[procedure Args Stmt]|nil env:Env)}
+							{ResetSuspendCount}
 						[] conditional|ident(X)|TrueStmt|FalseStmt|nil then
 							local Value in
 								if {IsInEnv X Env} then
 									Value = {RetrieveFromSAS {GetFromEnv X Env}}
 									case Value
 									of equivalence(_) then 
-										SuspendCount:=@SuspendCount+1 
+										{IncreaseSuspendCount}
 										UnBoundVar:=var(X)
+										{SuspendCurrThread}
 									[] literal(true) then 
+										{ResetSuspendCount}
 										{Push pair(stmt:TrueStmt env:{CloneEnv Env})}
 									[] literal(false) then
+										{ResetSuspendCount}
 										{Push pair(stmt:FalseStmt env:{CloneEnv Env})}
 									else
 										raise illegalBooleanValue(Value) end
@@ -183,6 +188,7 @@ define
 									Fvalue = {RetrieveFromSAS {GetFromEnv PName Env}}
 									case Fvalue
 									of procedure(stmt:procedure|FormalArgs|ProcStmt|nil ce:CE) then
+										{ResetSuspendCount}
 										if {Length ActualArgs} == {Length FormalArgs} then
 											Fce = {CloneEnv CE}
 											{
@@ -226,8 +232,9 @@ define
 											end 
 										end
 									[] equivalence(_) then
-										SuspendCount := @SuspendCount+1
+										{IncreaseSuspendCount}
 										UnBoundVar:=pname(PName)
+										{SuspendCurrThread}
 									else 
 										raise typeError(PName) end
 									end
@@ -245,10 +252,12 @@ define
 									case ValX
 									of equivalence(_) then
 										% X is unbounded
-										SuspendCount:=@SuspendCount+1
+										{IncreaseSuspendCount}
+										{SuspendCurrThread}
 										% raise unBoundVariable(X) end
 										UnBoundVar:=var(X)
 									[] record | !L | PairList|nil then
+										{ResetSuspendCount}
 										InpPair = {Canonize Pairs1}
 										ExpPair = {Canonize PairList}
 										% InpPair = Pairs1
@@ -279,16 +288,19 @@ define
 												{Push pair(env:NewEnv stmt:TrueStmt)}
 											end
 										end	
-									else 
+									else
+										{ResetSuspendCount}
 										{Push pair(stmt:FalseStmt env:{CloneEnv Env})}
 									end
 							end
 
 						[] thr|S then
+							{ResetSuspendCount}
 							{System.show thr_stmt(S)}
 							{CreateNewStack pair(stmt:S env:{CloneEnv Env})}
 
 						[] H|T then 
+							{ResetSuspendCount}
 							if T \=nil then
 								{Push pair(stmt:T env:{CloneEnv Env})}
 							else
@@ -296,6 +308,7 @@ define
 							end
 							{Push pair(stmt:H env:{CloneEnv Env})} 
 						else
+							{ResetSuspendCount}
 							{System.show 'Is that a bad statement here?'}
 							{System.show Stmt}
 						end
@@ -305,6 +318,7 @@ define
 						{Browser.browse 'Execution Suspended'}
 						{System.show unBounded(@UnBoundVar)}
 						{System.show 'Execution Suspended'}
+						{System.show sasViewEnd({PrintableSAS})}
 						% {Application.exit ~1}
 					end
 				end
@@ -341,7 +355,7 @@ define
 		% ]
 		% AST = [match ident(x) record literal(lit) [[f1 v1] [f2 v2]] nop nop]
 		AST = [variable [ident(a) ident(b) ident(c) ident(d) ident(e) ident(f)] 
-				[thr 
+				[thr
 					[bind ident(b) literal(b)]
 					[bind ident(c) literal(c)]
 					[bind ident(d) literal(d)]

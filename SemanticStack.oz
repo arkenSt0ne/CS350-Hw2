@@ -2,6 +2,7 @@
 %declare
 MultiStack = {NewCell nil}
 ExecutionCount = {NewCell 0}
+SuspendCount = {NewCell 0}
 % Stack = {NewCell nil}
 
 fun {ValueToPrintable Val}
@@ -27,6 +28,16 @@ proc {IncreaseExecutionCount}
    ExecutionCount := @ExecutionCount+1
 end
 
+proc {ResetSuspendCount}
+   SuspendCount := 0
+end
+
+proc {IncreaseSuspendCount}
+   SuspendCount := @SuspendCount+1
+   {System.show 'Thread Suspended'}
+end
+
+
 proc {DeleteCurrThread}
    {ResetExecutionCount}
    MultiStack := @MultiStack.2
@@ -35,6 +46,7 @@ end
 proc {SuspendCurrThread}
    {ResetExecutionCount}
    MultiStack := {Append @MultiStack.2 [@MultiStack.1]}
+   {System.show 'Thread Suspended'}
 end
 
 
